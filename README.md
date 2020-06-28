@@ -26,7 +26,8 @@ See [ChangeLog.md](https://github.com/kubo/rust-oracle/blob/master/ChangeLog.md)
 
 ## Build-time Requirements
 
-* Rust 1.31.0 or later for rust-oracle 0.3.0 and later.
+* Rust 1.36.0 or later for rust-oracle 0.4.x
+* Rust 1.31.0 or later for rust-oracle 0.3.x
 * Rust 1.19.0 or later for rust-oarcle 0.1.x and 0.2.x.
 * C compiler. See `Compile-time Requirements` in [this document](https://github.com/alexcrichton/cc-rs#compile-time-requirements).
 

@@ -15,7 +15,7 @@
 
 use std::collections::HashMap;
 use std::fmt;
-use std::mem;
+use std::mem::{self, MaybeUninit};
 use std::ptr;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -877,12 +877,15 @@ impl Connection {
     /// ```
     pub fn server_version(&self) -> Result<(Version, String)> {
         let mut s = new_odpi_str();
-        let mut dpi_ver = Default::default();
+        let mut ver = MaybeUninit::uninit();
         chkerr!(
             self.ctxt,
-            dpiConn_getServerVersion(self.handle.raw(), &mut s.ptr, &mut s.len, &mut dpi_ver)
+            dpiConn_getServerVersion(self.handle.raw(), &mut s.ptr, &mut s.len, ver.as_mut_ptr())
         );
-        Ok((Version::new_from_dpi_ver(dpi_ver), s.to_string()))
+        Ok((
+            Version::new_from_dpi_ver(unsafe { ver.assume_init() }),
+            s.to_string(),
+        ))
     }
 
     /// Changes the password for the specified user
@@ -960,8 +963,9 @@ impl Connection {
                     ))),
                 }
             } else {
-                let mut err: dpiErrorInfo = Default::default();
-                dpiContext_getError(self.ctxt.context, &mut err);
+                let mut err = MaybeUninit::uninit();
+                dpiContext_getError(self.ctxt.context, err.as_mut_ptr());
+                let err = err.assume_init();
                 let message = to_rust_slice(err.message, err.messageLength);
                 if message == b"DPI-1010: not connected" {
                     Ok(ConnStatus::Closed)
