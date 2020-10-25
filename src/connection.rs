@@ -46,6 +46,11 @@ use crate::Statement;
 use crate::StmtParam;
 use crate::Version;
 
+const OCI_HTYPE_SERVER: u32 = 8;
+const OCI_ATTR_SERVER_STATUS: u32 = 143;
+const OCI_SERVER_NOT_CONNECTED: u32 = 0;
+const OCI_SERVER_NORMAL: u32 = 1;
+
 /// Database startup mode
 ///
 /// See [Connection.startup_database](struct.Connection.html#method.startup_database).
@@ -952,11 +957,19 @@ impl Connection {
     /// See also [Connection.ping](struct.Connection.html#method.ping).
     pub fn status(&self) -> Result<ConnStatus> {
         unsafe {
-            let mut status = 0;
-            if dpi_ext_dpiConn_getServerStatus(self.handle.raw(), &mut status) == 0 {
+            let mut buf = MaybeUninit::uninit();
+            if dpiConn_getOciAttr(
+                self.handle.raw(),
+                OCI_HTYPE_SERVER,
+                OCI_ATTR_SERVER_STATUS,
+                buf.as_mut_ptr(),
+                ptr::null_mut(),
+            ) == 0
+            {
+                let status = buf.assume_init().asUint32;
                 match status {
-                    DPI_OCI_SERVER_NOT_CONNECTED => Ok(ConnStatus::NotConnected),
-                    DPI_OCI_SERVER_NORMAL => Ok(ConnStatus::Normal),
+                    OCI_SERVER_NOT_CONNECTED => Ok(ConnStatus::NotConnected),
+                    OCI_SERVER_NORMAL => Ok(ConnStatus::Normal),
                     _ => Err(Error::InternalError(format!(
                         "Unexpected server status: {}",
                         status

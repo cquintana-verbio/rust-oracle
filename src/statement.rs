@@ -37,6 +37,8 @@ use crate::Row;
 use crate::RowValue;
 use crate::SqlValue;
 
+const OCI_ATTR_SQLFNCODE: u32 = 10;
+
 // https://docs.oracle.com/en/database/oracle/oracle-database/19/lnoci/handle-and-descriptor-attributes.html#GUID-A251CF91-EB9F-4DBC-8BB8-FB5EA92C20DE
 const SQLFNCODE_CREATE_TYPE: u16 = 77;
 const SQLFNCODE_ALTER_TYPE: u16 = 80;
@@ -485,11 +487,17 @@ impl<'conn> Statement<'conn> {
             dpiStmt_execute(self.handle, exec_mode, &mut num_query_columns)
         );
         if self.is_ddl() {
-            let mut fncode = 0;
+            let mut buf = MaybeUninit::uninit();
             chkerr!(
                 self.conn.ctxt,
-                dpi_ext_dpiStmt_getFnCode(self.handle, &mut fncode)
+                dpiStmt_getOciAttr(
+                    self.handle,
+                    OCI_ATTR_SQLFNCODE,
+                    buf.as_mut_ptr(),
+                    ptr::null_mut()
+                )
             );
+            let fncode = unsafe { buf.assume_init().asUint16 };
             match fncode {
                 SQLFNCODE_CREATE_TYPE | SQLFNCODE_ALTER_TYPE | SQLFNCODE_DROP_TYPE => {
                     self.conn.clear_object_type_cache()?

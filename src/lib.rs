@@ -415,9 +415,10 @@ lazy_static! {
         let mut ctxt = ptr::null_mut();
         let mut err = MaybeUninit::uninit();
         if unsafe {
-            dpiContext_create(
+            dpiContext_createWithParams(
                 DPI_MAJOR_VERSION,
                 DPI_MINOR_VERSION,
+                ptr::null_mut(),
                 &mut ctxt,
                 err.as_mut_ptr(),
             )
