@@ -310,9 +310,6 @@ pub use crate::connection::Connector;
 pub use crate::connection::Privilege;
 pub use crate::connection::ShutdownMode;
 pub use crate::connection::StartupMode;
-pub use crate::error::DbError;
-pub use crate::error::Error;
-pub use crate::error::ParseOracleTypeError;
 pub use crate::row::ResultSet;
 pub use crate::row::Row;
 pub use crate::row::RowValue;
@@ -324,6 +321,9 @@ pub use crate::statement::Statement;
 pub use crate::statement::StatementType;
 pub use crate::statement::StmtParam;
 pub use crate::version::Version;
+pub use odpi_rs::error::DbError;
+pub use odpi_rs::error::Error;
+pub use odpi_rs::error::ParseOracleTypeError;
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -425,7 +425,7 @@ impl Context {
     pub fn get() -> Result<&'static Context> {
         match *DPI_CONTEXT {
             ContextResult::Ok(ref ctxt) => Ok(ctxt),
-            ContextResult::Err(ref err) => Err(error::error_from_dpi_error(err)),
+            ContextResult::Err(ref err) => Err(unsafe { Error::with_raw_err(err) }),
         }
     }
 

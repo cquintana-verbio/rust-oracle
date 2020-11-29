@@ -14,7 +14,6 @@
 //-----------------------------------------------------------------------------
 
 use crate::chkerr;
-use crate::error::error_from_dpi_error;
 use crate::new_odpi_str;
 use crate::sql_type::ObjectType;
 use crate::sql_type::ObjectTypeInternal;
@@ -982,7 +981,7 @@ impl Connection {
                 if message == b"DPI-1010: not connected" {
                     Ok(ConnStatus::Closed)
                 } else {
-                    Err(error_from_dpi_error(&err))
+                    Err(Error::with_raw_err(&err))
                 }
             }
         }
