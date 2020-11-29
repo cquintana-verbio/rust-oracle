@@ -13,15 +13,14 @@
 // (ii) the Apache License v 2.0. (http://www.apache.org/licenses/LICENSE-2.0)
 //-----------------------------------------------------------------------------
 
-use std::fmt;
-use std::ptr;
-
-use crate::binding::*;
 use crate::sql_type::ObjectType;
 use crate::Context;
 use crate::DpiObjectType;
 use crate::Error;
 use crate::Result;
+use odpi_sys::*;
+use std::fmt;
+use std::ptr;
 
 // NativeType corresponds to dpiNativeTypeNum in ODPI
 // except Char, Number, Raw, CLOB and BLOB.

@@ -13,13 +13,6 @@
 // (ii) the Apache License v 2.0. (http://www.apache.org/licenses/LICENSE-2.0)
 //-----------------------------------------------------------------------------
 
-use std::cell::RefCell;
-use std::fmt;
-use std::mem::MaybeUninit;
-use std::ptr;
-use std::rc::Rc;
-
-use crate::binding::*;
 use crate::chkerr;
 use crate::new_odpi_str;
 use crate::private;
@@ -36,6 +29,12 @@ use crate::ResultSet;
 use crate::Row;
 use crate::RowValue;
 use crate::SqlValue;
+use odpi_sys::*;
+use std::cell::RefCell;
+use std::fmt;
+use std::mem::MaybeUninit;
+use std::ptr;
+use std::rc::Rc;
 
 const OCI_ATTR_SQLFNCODE: u32 = 10;
 

@@ -1,0 +1,13 @@
+[package]
+name = "odpi-sys"
+version = "0.1.0"
+authors = ["Kubo Takehiro <kubo@jiubao.org>"]
+build = "build.rs"
+repository = "https://github.com/kubo/rust-oracle"
+license = "UPL-1.0/Apache-2.0"
+keywords = ["oracle", "database"]
+description = "FFI bindings to Oracle Database Programming Interface for C (ODPI-C)"
+edition = "2018"
+
+[build-dependencies]
+cc = "1.0"

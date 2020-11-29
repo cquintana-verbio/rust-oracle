@@ -13,15 +13,6 @@
 // (ii) the Apache License v 2.0. (http://www.apache.org/licenses/LICENSE-2.0)
 //-----------------------------------------------------------------------------
 
-use std::collections::HashMap;
-use std::fmt;
-use std::mem::{self, MaybeUninit};
-use std::ptr;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::time::Duration;
-
-use crate::binding::*;
 use crate::chkerr;
 use crate::error::error_from_dpi_error;
 use crate::new_odpi_str;
@@ -45,6 +36,14 @@ use crate::RowValue;
 use crate::Statement;
 use crate::StmtParam;
 use crate::Version;
+use odpi_sys::*;
+use std::collections::HashMap;
+use std::fmt;
+use std::mem::{self, MaybeUninit};
+use std::ptr;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::Duration;
 
 const OCI_HTYPE_SERVER: u32 = 8;
 const OCI_ATTR_SERVER_STATUS: u32 = 143;

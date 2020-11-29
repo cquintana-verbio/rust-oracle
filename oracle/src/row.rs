@@ -13,12 +13,6 @@
 // (ii) the Apache License v 2.0. (http://www.apache.org/licenses/LICENSE-2.0)
 //-----------------------------------------------------------------------------
 
-use std::boxed::Box;
-use std::fmt;
-use std::iter::FusedIterator;
-use std::marker::PhantomData;
-use std::rc::Rc;
-
 use crate::sql_type::FromSql;
 use crate::ColumnIndex;
 use crate::ColumnInfo;
@@ -27,6 +21,11 @@ use crate::DpiConn;
 use crate::Result;
 use crate::SqlValue;
 use crate::Statement;
+use std::boxed::Box;
+use std::fmt;
+use std::iter::FusedIterator;
+use std::marker::PhantomData;
+use std::rc::Rc;
 
 pub struct RowSharedData {
     column_names: Vec<String>,

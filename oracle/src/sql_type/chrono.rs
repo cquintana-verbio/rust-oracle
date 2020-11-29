@@ -13,8 +13,6 @@
 // (ii) the Apache License v 2.0. (http://www.apache.org/licenses/LICENSE-2.0)
 //-----------------------------------------------------------------------------
 
-use chrono::prelude::*;
-
 use crate::sql_type::FromSql;
 use crate::sql_type::IntervalDS;
 use crate::sql_type::OracleType;
@@ -28,6 +26,7 @@ use crate::SqlValue;
 use chrono::naive::NaiveDate;
 use chrono::naive::NaiveDateTime;
 use chrono::offset::LocalResult;
+use chrono::prelude::*;
 use chrono::Duration;
 
 //

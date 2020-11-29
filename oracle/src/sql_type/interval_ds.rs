@@ -13,14 +13,13 @@
 // (ii) the Apache License v 2.0. (http://www.apache.org/licenses/LICENSE-2.0)
 //-----------------------------------------------------------------------------
 
-use std::cmp;
-use std::fmt;
-use std::str;
-
-use crate::binding::dpiIntervalDS;
 use crate::sql_type::OracleType;
 use crate::util::Scanner;
 use crate::ParseOracleTypeError;
+use odpi_sys::dpiIntervalDS;
+use std::cmp;
+use std::fmt;
+use std::str;
 
 /// Oracle-specific [Interval Day to Second][INTVL_DS] data type.
 ///

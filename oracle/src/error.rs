@@ -13,12 +13,12 @@
 // (ii) the Apache License v 2.0. (http://www.apache.org/licenses/LICENSE-2.0)
 //-----------------------------------------------------------------------------
 
-use crate::binding::dpiContext_getError;
-use crate::binding::dpiErrorInfo;
 use crate::to_rust_str;
 use crate::AssertSend;
 use crate::AssertSync;
 use crate::Context;
+use odpi_sys::dpiContext_getError;
+use odpi_sys::dpiErrorInfo;
 use std::error;
 use std::ffi::CStr;
 use std::fmt;

@@ -288,17 +288,13 @@ Rust-oracle and ODPI-C bundled in rust-oracle are under the terms of:
 */
 
 use lazy_static::lazy_static;
+use odpi_sys::*;
 use std::mem::MaybeUninit;
 use std::os::raw::c_char;
 use std::ptr;
 use std::result;
 use std::slice;
 
-#[allow(dead_code)]
-#[allow(non_camel_case_types)]
-#[allow(non_snake_case)]
-#[allow(improper_ctypes)]
-mod binding;
 mod connection;
 mod error;
 mod row;
@@ -328,8 +324,6 @@ pub use crate::statement::Statement;
 pub use crate::statement::StatementType;
 pub use crate::statement::StmtParam;
 pub use crate::version::Version;
-
-use crate::binding::*;
 
 pub type Result<T> = result::Result<T, Error>;
 

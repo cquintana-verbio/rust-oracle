@@ -13,14 +13,6 @@
 // (ii) the Apache License v 2.0. (http://www.apache.org/licenses/LICENSE-2.0)
 //-----------------------------------------------------------------------------
 
-use std::cell::RefCell;
-use std::convert::TryInto;
-use std::fmt;
-use std::ptr;
-use std::rc::Rc;
-use std::str;
-
-use crate::binding::*;
 use crate::chkerr;
 use crate::sql_type::Collection;
 use crate::sql_type::FromSql;
@@ -42,6 +34,13 @@ use crate::Context;
 use crate::DpiConn;
 use crate::Error;
 use crate::Result;
+use odpi_sys::*;
+use std::cell::RefCell;
+use std::convert::TryInto;
+use std::fmt;
+use std::ptr;
+use std::rc::Rc;
+use std::str;
 
 macro_rules! flt_to_int {
     ($expr:expr, $src_type:ident, $dest_type:ident) => {{
