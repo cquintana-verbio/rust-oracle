@@ -17,7 +17,6 @@ use crate::chkerr;
 use crate::sql_type::FromSql;
 use crate::sql_type::OracleType;
 use crate::sql_type::ToSql;
-use crate::to_rust_str;
 use crate::util::write_literal;
 use crate::Connection;
 use crate::Context;
@@ -29,7 +28,7 @@ use odpi_rs::types::ObjectType as OdpiObjectType;
 use odpi_sys::*;
 use std::cmp;
 use std::fmt;
-use std::mem::{self, MaybeUninit};
+use std::mem;
 use std::ptr;
 use std::sync::Arc;
 
@@ -660,14 +659,12 @@ pub struct ObjectTypeAttr {
 
 impl ObjectTypeAttr {
     fn new(ctxt: Context, handle: OdpiObjectAttr) -> Result<ObjectTypeAttr> {
-        let mut info = MaybeUninit::uninit();
-        chkerr!(ctxt, dpiObjectAttr_getInfo(handle.raw(), info.as_mut_ptr()));
-        let info = unsafe { info.assume_init() };
+        let info = handle.info()?;
         Ok(ObjectTypeAttr {
             ctxt: ctxt,
             handle: handle,
-            name: to_rust_str(info.name, info.nameLength),
-            oratype: OracleType::from_type_info(ctxt, &info.typeInfo)?,
+            oratype: OracleType::from_type_info(ctxt, &info.type_info)?,
+            name: info.name,
         })
     }
 
@@ -720,46 +717,23 @@ pub(crate) struct ObjectTypeInternal {
 
 impl ObjectTypeInternal {
     fn from_dpi_object_type(ctxt: Context, handle: OdpiObjectType) -> Result<ObjectTypeInternal> {
-        let mut info = MaybeUninit::uninit();
-        chkerr!(ctxt, dpiObjectType_getInfo(handle.raw(), info.as_mut_ptr()));
-        let info = unsafe { info.assume_init() };
-        let (elem_oratype, attrs) = if info.isCollection != 0 {
-            match OracleType::from_type_info(ctxt, &info.elementTypeInfo) {
-                Ok(oratype) => (Some(oratype), Vec::new()),
-                Err(err) => return Err(err),
-            }
+        let info = handle.info()?;
+        let elem_oratype = if let Some(ref ty) = info.element_type_info {
+            Some(OracleType::from_type_info(ctxt, ty)?)
         } else {
-            let attrnum = info.numAttributes as usize;
-            let mut attr_handles = vec![ptr::null_mut(); attrnum];
-            chkerr!(
-                ctxt,
-                dpiObjectType_getAttributes(
-                    handle.raw(),
-                    info.numAttributes,
-                    attr_handles.as_mut_ptr()
-                )
-            );
-            let mut attrs = Vec::with_capacity(attrnum);
-            for i in 0..attrnum {
-                match ObjectTypeAttr::new(ctxt, OdpiObjectAttr::from_raw(ctxt, attr_handles[i])) {
-                    Ok(attr) => attrs.push(attr),
-                    Err(err) => {
-                        for j in (i + 1)..attrnum {
-                            unsafe {
-                                dpiObjectAttr_release(attr_handles[j]);
-                            }
-                        }
-                        return Err(err);
-                    }
-                }
-            }
-            (None, attrs)
+            None
         };
+        let attrs = handle
+            .attributes()?
+            .into_iter()
+            .map(|attr| ObjectTypeAttr::new(ctxt, attr))
+            .collect::<Result<Vec<ObjectTypeAttr>>>()?;
+        let (schema, name) = (info.schema, info.name);
         Ok(ObjectTypeInternal {
             ctxt: ctxt,
             handle: handle,
-            schema: to_rust_str(info.schema, info.schemaLength),
-            name: to_rust_str(info.name, info.nameLength),
+            schema: schema,
+            name: name,
             elem_oratype: elem_oratype,
             attrs: attrs,
         })

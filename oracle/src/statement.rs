@@ -866,16 +866,11 @@ pub struct ColumnInfo {
 
 impl ColumnInfo {
     fn new(stmt: &Statement, idx: usize) -> Result<ColumnInfo> {
-        let mut info = MaybeUninit::uninit();
-        chkerr!(
-            stmt.conn.ctxt(),
-            dpiStmt_getQueryInfo(stmt.raw(), (idx + 1) as u32, info.as_mut_ptr())
-        );
-        let info = unsafe { info.assume_init() };
+        let info = stmt.stmt.query_info((idx + 1) as u32)?;
         Ok(ColumnInfo {
-            name: to_rust_str(info.name, info.nameLength),
-            oracle_type: OracleType::from_type_info(stmt.conn.ctxt(), &info.typeInfo)?,
-            nullable: info.nullOk != 0,
+            oracle_type: OracleType::from_type_info(stmt.conn.ctxt(), &info.type_info)?,
+            nullable: info.null_ok,
+            name: info.name,
         })
     }
 

@@ -17,7 +17,8 @@ use crate::sql_type::ObjectType;
 use crate::Context;
 use crate::Error;
 use crate::Result;
-use odpi_rs::types::ObjectType as OdpiObjectType;
+use odpi_rs::types::DataTypeInfo;
+use odpi_rs::types::OracleType as OdpiOracleType;
 use odpi_sys::*;
 use std::fmt;
 use std::ptr;
@@ -204,48 +205,48 @@ pub enum OracleType {
 }
 
 impl OracleType {
-    pub(crate) fn from_type_info(ctxt: Context, info: &dpiDataTypeInfo) -> Result<OracleType> {
-        match info.oracleTypeNum {
-            DPI_ORACLE_TYPE_VARCHAR => Ok(OracleType::Varchar2(info.dbSizeInBytes)),
-            DPI_ORACLE_TYPE_NVARCHAR => Ok(OracleType::NVarchar2(info.sizeInChars)),
-            DPI_ORACLE_TYPE_CHAR => Ok(OracleType::Char(info.dbSizeInBytes)),
-            DPI_ORACLE_TYPE_NCHAR => Ok(OracleType::NChar(info.sizeInChars)),
-            DPI_ORACLE_TYPE_ROWID => Ok(OracleType::Rowid),
-            DPI_ORACLE_TYPE_RAW => Ok(OracleType::Raw(info.dbSizeInBytes)),
-            DPI_ORACLE_TYPE_NATIVE_FLOAT => Ok(OracleType::BinaryFloat),
-            DPI_ORACLE_TYPE_NATIVE_DOUBLE => Ok(OracleType::BinaryDouble),
-            DPI_ORACLE_TYPE_NATIVE_INT => Ok(OracleType::Int64),
-            DPI_ORACLE_TYPE_NUMBER => {
+    pub(crate) fn from_type_info(ctxt: Context, info: &DataTypeInfo) -> Result<OracleType> {
+        match info.oracle_type {
+            OdpiOracleType::Varchar => Ok(OracleType::Varchar2(info.db_size_in_bytes)),
+            OdpiOracleType::NVarchar => Ok(OracleType::NVarchar2(info.size_in_chars)),
+            OdpiOracleType::Char => Ok(OracleType::Char(info.db_size_in_bytes)),
+            OdpiOracleType::NChar => Ok(OracleType::NChar(info.size_in_chars)),
+            OdpiOracleType::RowId => Ok(OracleType::Rowid),
+            OdpiOracleType::Raw => Ok(OracleType::Raw(info.db_size_in_bytes)),
+            OdpiOracleType::NativeFloat => Ok(OracleType::BinaryFloat),
+            OdpiOracleType::NativeDouble => Ok(OracleType::BinaryDouble),
+            OdpiOracleType::NativeInt => Ok(OracleType::Int64),
+            OdpiOracleType::Number => {
                 if info.precision != 0 && info.scale == -127 {
                     Ok(OracleType::Float(info.precision as u8))
                 } else {
                     Ok(OracleType::Number(info.precision as u8, info.scale))
                 }
             }
-            DPI_ORACLE_TYPE_DATE => Ok(OracleType::Date),
-            DPI_ORACLE_TYPE_TIMESTAMP => Ok(OracleType::Timestamp(info.fsPrecision)),
-            DPI_ORACLE_TYPE_TIMESTAMP_TZ => Ok(OracleType::TimestampTZ(info.fsPrecision)),
-            DPI_ORACLE_TYPE_TIMESTAMP_LTZ => Ok(OracleType::TimestampLTZ(info.fsPrecision)),
-            DPI_ORACLE_TYPE_INTERVAL_DS => Ok(OracleType::IntervalDS(
+            OdpiOracleType::Date => Ok(OracleType::Date),
+            OdpiOracleType::Timestamp => Ok(OracleType::Timestamp(info.fs_precision)),
+            OdpiOracleType::TimestampTz => Ok(OracleType::TimestampTZ(info.fs_precision)),
+            OdpiOracleType::TimestampLtz => Ok(OracleType::TimestampLTZ(info.fs_precision)),
+            OdpiOracleType::IntervalDs => Ok(OracleType::IntervalDS(
                 info.precision as u8,
-                info.fsPrecision,
+                info.fs_precision,
             )),
-            DPI_ORACLE_TYPE_INTERVAL_YM => Ok(OracleType::IntervalYM(info.precision as u8)),
-            DPI_ORACLE_TYPE_CLOB => Ok(OracleType::CLOB),
-            DPI_ORACLE_TYPE_NCLOB => Ok(OracleType::NCLOB),
-            DPI_ORACLE_TYPE_BLOB => Ok(OracleType::BLOB),
-            DPI_ORACLE_TYPE_BFILE => Ok(OracleType::BFILE),
-            DPI_ORACLE_TYPE_STMT => Ok(OracleType::RefCursor),
-            DPI_ORACLE_TYPE_BOOLEAN => Ok(OracleType::Boolean),
-            DPI_ORACLE_TYPE_OBJECT => Ok(OracleType::Object(ObjectType::from_dpi_object_type(
+            OdpiOracleType::IntervalYm => Ok(OracleType::IntervalYM(info.precision as u8)),
+            OdpiOracleType::CLob => Ok(OracleType::CLOB),
+            OdpiOracleType::NCLob => Ok(OracleType::NCLOB),
+            OdpiOracleType::BLob => Ok(OracleType::BLOB),
+            OdpiOracleType::BFile => Ok(OracleType::BFILE),
+            OdpiOracleType::Stmt => Ok(OracleType::RefCursor),
+            OdpiOracleType::Boolean => Ok(OracleType::Boolean),
+            OdpiOracleType::Object => Ok(OracleType::Object(ObjectType::from_dpi_object_type(
                 ctxt,
-                OdpiObjectType::with_add_ref(ctxt, info.objectType)?,
+                info.object_type.as_ref().unwrap().clone(),
             )?)),
-            DPI_ORACLE_TYPE_LONG_VARCHAR => Ok(OracleType::Long),
-            DPI_ORACLE_TYPE_LONG_RAW => Ok(OracleType::LongRaw),
+            OdpiOracleType::LongVarchar => Ok(OracleType::Long),
+            OdpiOracleType::LongRaw => Ok(OracleType::LongRaw),
             _ => Err(Error::InternalError(format!(
-                "Unknown oracle type number: {}",
-                info.oracleTypeNum
+                "Unknown oracle type: {:?}",
+                info.oracle_type
             ))),
         }
     }
