@@ -24,7 +24,7 @@ col path new_val path
 select :path path from dual;
 set termout on
 
-@&path/../odpi/test/sql/SetupTest.sql
+@&path/../../odpi-sys/odpi/test/sql/SetupTest.sql
 
 create type &main_user..udt_issue19_obj as object (
     FloatCol                            float

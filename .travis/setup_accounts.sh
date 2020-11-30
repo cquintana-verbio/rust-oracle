@@ -2,5 +2,5 @@
 
 set -ev
 
-"$ORACLE_HOME/bin/sqlplus" / as sysdba @tests/SetupTest.sql < /dev/null
+"$ORACLE_HOME/bin/sqlplus" / as sysdba @oracle/tests/SetupTest.sql < /dev/null
 
