@@ -13,5 +13,10 @@
 // (ii) the Apache License v 2.0. (http://www.apache.org/licenses/LICENSE-2.0)
 //-----------------------------------------------------------------------------
 
+use std::result;
+
+pub mod context;
 pub mod error;
 mod util;
+
+pub type Result<T> = result::Result<T, error::Error>;

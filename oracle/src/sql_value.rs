@@ -130,7 +130,7 @@ pub enum BufferRowIndex {
 /// [is_null]: #method.is_null
 /// [set_null]: #method.set_null
 pub struct SqlValue {
-    ctxt: &'static Context,
+    ctxt: Context,
     pub(crate) handle: *mut dpiVar,
     data: *mut dpiData,
     native_type: NativeType,
@@ -143,7 +143,7 @@ pub struct SqlValue {
 
 impl SqlValue {
     // for column and bind values
-    pub(crate) fn new(ctxt: &'static Context) -> SqlValue {
+    pub(crate) fn new(ctxt: Context) -> SqlValue {
         SqlValue {
             ctxt: ctxt,
             handle: ptr::null_mut(),
@@ -159,7 +159,7 @@ impl SqlValue {
 
     // for object type
     pub(crate) fn from_oratype(
-        ctxt: &'static Context,
+        ctxt: Context,
         oratype: &OracleType,
         data: &mut dpiData,
     ) -> Result<SqlValue> {

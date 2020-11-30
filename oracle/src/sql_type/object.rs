@@ -72,17 +72,13 @@ unsafe fn release_dpi_data(data: &dpiData, native_type_num: u32) {
 ///
 /// Note: Methods in the type may be changed in future.
 pub struct Collection {
-    ctxt: &'static Context,
+    ctxt: Context,
     pub(crate) handle: *mut dpiObject,
     objtype: ObjectType,
 }
 
 impl Collection {
-    pub(crate) fn new(
-        ctxt: &'static Context,
-        handle: *mut dpiObject,
-        objtype: ObjectType,
-    ) -> Collection {
+    pub(crate) fn new(ctxt: Context, handle: *mut dpiObject, objtype: ObjectType) -> Collection {
         Collection {
             ctxt: ctxt,
             handle: handle,
@@ -357,17 +353,13 @@ impl fmt::Debug for Collection {
 ///
 /// Note: Methods in the type may be changed in future.
 pub struct Object {
-    ctxt: &'static Context,
+    ctxt: Context,
     pub(crate) handle: *mut dpiObject,
     objtype: ObjectType,
 }
 
 impl Object {
-    pub(crate) fn new(
-        ctxt: &'static Context,
-        handle: *mut dpiObject,
-        objtype: ObjectType,
-    ) -> Object {
+    pub(crate) fn new(ctxt: Context, handle: *mut dpiObject, objtype: ObjectType) -> Object {
         Object {
             ctxt: ctxt,
             handle: handle,
@@ -537,10 +529,7 @@ pub struct ObjectType {
 }
 
 impl ObjectType {
-    pub(crate) fn from_dpi_object_type(
-        ctxt: &'static Context,
-        handle: DpiObjectType,
-    ) -> Result<ObjectType> {
+    pub(crate) fn from_dpi_object_type(ctxt: Context, handle: DpiObjectType) -> Result<ObjectType> {
         Ok(ObjectType {
             internal: Arc::new(ObjectTypeInternal::from_dpi_object_type(ctxt, handle)?),
         })
@@ -660,14 +649,14 @@ impl fmt::Debug for ObjectType {
 ///
 /// See [ObjectType.attributes()](struct.ObjectType.html#method.attributes)
 pub struct ObjectTypeAttr {
-    ctxt: &'static Context,
+    ctxt: Context,
     handle: DpiObjectAttr,
     name: String,
     oratype: OracleType,
 }
 
 impl ObjectTypeAttr {
-    fn new(ctxt: &'static Context, handle: DpiObjectAttr) -> Result<ObjectTypeAttr> {
+    fn new(ctxt: Context, handle: DpiObjectAttr) -> Result<ObjectTypeAttr> {
         let mut info = MaybeUninit::uninit();
         chkerr!(ctxt, dpiObjectAttr_getInfo(handle.raw(), info.as_mut_ptr()));
         let info = unsafe { info.assume_init() };
@@ -718,7 +707,7 @@ impl fmt::Debug for ObjectTypeAttr {
 //
 
 pub(crate) struct ObjectTypeInternal {
-    ctxt: &'static Context,
+    ctxt: Context,
     handle: DpiObjectType,
     schema: String,
     name: String,
@@ -727,10 +716,7 @@ pub(crate) struct ObjectTypeInternal {
 }
 
 impl ObjectTypeInternal {
-    fn from_dpi_object_type(
-        ctxt: &'static Context,
-        handle: DpiObjectType,
-    ) -> Result<ObjectTypeInternal> {
+    fn from_dpi_object_type(ctxt: Context, handle: DpiObjectType) -> Result<ObjectTypeInternal> {
         let mut info = MaybeUninit::uninit();
         chkerr!(ctxt, dpiObjectType_getInfo(handle.raw(), info.as_mut_ptr()));
         let info = unsafe { info.assume_init() };

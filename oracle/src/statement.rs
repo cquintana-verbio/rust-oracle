@@ -741,7 +741,7 @@ impl<'conn> Statement<'conn> {
                 None
             }
         } else {
-            Some(Err(crate::error::error_from_context(self.conn.ctxt)))
+            Some(Err(self.conn.ctxt.last_error()))
         }
     }
 

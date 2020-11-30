@@ -204,10 +204,7 @@ pub enum OracleType {
 }
 
 impl OracleType {
-    pub(crate) fn from_type_info(
-        ctxt: &'static Context,
-        info: &dpiDataTypeInfo,
-    ) -> Result<OracleType> {
+    pub(crate) fn from_type_info(ctxt: Context, info: &dpiDataTypeInfo) -> Result<OracleType> {
         match info.oracleTypeNum {
             DPI_ORACLE_TYPE_VARCHAR => Ok(OracleType::Varchar2(info.dbSizeInBytes)),
             DPI_ORACLE_TYPE_NVARCHAR => Ok(OracleType::NVarchar2(info.sizeInChars)),

@@ -14,7 +14,7 @@
 //-----------------------------------------------------------------------------
 
 use crate::chkerr;
-use crate::Context;
+use crate::global_context;
 use crate::Result;
 use odpi_sys::*;
 use std::fmt;
@@ -72,11 +72,11 @@ impl Version {
     /// # Ok(())} fn main() { try_main().unwrap(); }
     /// ```
     pub fn client() -> Result<Version> {
-        let ctx = Context::get()?;
+        let ctx = global_context()?;
         let mut ver = MaybeUninit::uninit();
         chkerr!(
             ctx,
-            dpiContext_getClientVersion(ctx.context, ver.as_mut_ptr())
+            dpiContext_getClientVersion(ctx.as_mut_ptr(), ver.as_mut_ptr())
         );
         Ok(Version::new_from_dpi_ver(unsafe { ver.assume_init() }))
     }

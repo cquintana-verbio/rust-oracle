@@ -289,10 +289,8 @@ Rust-oracle and ODPI-C bundled in rust-oracle are under the terms of:
 
 use lazy_static::lazy_static;
 use odpi_sys::*;
-use std::mem::MaybeUninit;
 use std::os::raw::c_char;
 use std::ptr;
-use std::result;
 use std::slice;
 
 mod connection;
@@ -321,11 +319,12 @@ pub use crate::statement::Statement;
 pub use crate::statement::StatementType;
 pub use crate::statement::StmtParam;
 pub use crate::version::Version;
+pub use odpi_rs::context::Context;
+pub use odpi_rs::context::ContextCreateParams;
 pub use odpi_rs::error::DbError;
 pub use odpi_rs::error::Error;
 pub use odpi_rs::error::ParseOracleTypeError;
-
-pub type Result<T> = result::Result<T, Error>;
+pub use odpi_rs::Result;
 
 macro_rules! define_dpi_data_with_refcount {
     ($name:ident) => {
@@ -378,75 +377,26 @@ define_dpi_data_with_refcount!(ObjectType);
 // define DpiObjectAttr wrapping *mut dpiObjectAttr.
 define_dpi_data_with_refcount!(ObjectAttr);
 
-//
-// Context
-//
-
-struct Context {
-    pub context: *mut dpiContext,
-}
-
-unsafe impl Sync for Context {}
-unsafe impl Send for Context {}
-
-enum ContextResult {
-    Ok(Context),
-    Err(dpiErrorInfo),
-}
-
-unsafe impl Sync for ContextResult {}
-unsafe impl Send for ContextResult {}
-
 trait AssertSend: Send {}
 trait AssertSync: Sync {}
 
 lazy_static! {
-    static ref DPI_CONTEXT: ContextResult = {
-        let mut ctxt = ptr::null_mut();
-        let mut err = MaybeUninit::uninit();
-        if unsafe {
-            dpiContext_createWithParams(
-                DPI_MAJOR_VERSION,
-                DPI_MINOR_VERSION,
-                ptr::null_mut(),
-                &mut ctxt,
-                err.as_mut_ptr(),
-            )
-        } == DPI_SUCCESS as i32
-        {
-            ContextResult::Ok(Context { context: ctxt })
-        } else {
-            ContextResult::Err(unsafe { err.assume_init() })
-        }
+    static ref GLOBAL_CONTEXT: Result<Context> = {
+        let mut params = ContextCreateParams::new();
+        params
+            .default_driver_name(concat!("rust-oracle : ", env!("CARGO_PKG_VERSION")).to_string());
+        Context::with_params(&params)
     };
 }
 
-impl Context {
-    pub fn get() -> Result<&'static Context> {
-        match *DPI_CONTEXT {
-            ContextResult::Ok(ref ctxt) => Ok(ctxt),
-            ContextResult::Err(ref err) => Err(unsafe { Error::with_raw_err(err) }),
-        }
-    }
-
-    pub fn common_create_params(&self) -> dpiCommonCreateParams {
-        let mut params = MaybeUninit::uninit();
-        unsafe {
-            dpiContext_initCommonCreateParams(self.context, params.as_mut_ptr());
-            let mut params = params.assume_init();
-            let driver_name: &'static str = concat!("rust-oracle : ", env!("CARGO_PKG_VERSION"));
-            params.createMode |= DPI_MODE_CREATE_THREADED;
-            params.driverName = driver_name.as_ptr() as *const c_char;
-            params.driverNameLength = driver_name.len() as u32;
-            params
-        }
-    }
-    pub fn conn_create_params(&self) -> dpiConnCreateParams {
-        let mut params = MaybeUninit::uninit();
-        unsafe {
-            dpiContext_initConnCreateParams(self.context, params.as_mut_ptr());
-            params.assume_init()
-        }
+fn global_context() -> Result<Context> {
+    match *GLOBAL_CONTEXT {
+        Ok(ref ctxt) => Ok(ctxt.clone()),
+        Err(ref err) => match err {
+            Error::OciError(err) => Err(Error::OciError(err.clone())),
+            Error::DpiError(err) => Err(Error::DpiError(err.clone())),
+            _ => panic!("xxx"),
+        },
     }
 }
 

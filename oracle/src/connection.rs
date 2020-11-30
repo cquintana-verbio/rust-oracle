@@ -14,6 +14,7 @@
 //-----------------------------------------------------------------------------
 
 use crate::chkerr;
+use crate::global_context;
 use crate::new_odpi_str;
 use crate::sql_type::ObjectType;
 use crate::sql_type::ObjectTypeInternal;
@@ -379,7 +380,7 @@ impl Connector {
 
     /// Connect an Oracle server using specified parameters
     pub fn connect(&self) -> Result<Connection> {
-        let ctxt = Context::get()?;
+        let ctxt = global_context()?;
         let mut common_params = ctxt.common_create_params();
         let mut conn_params = ctxt.conn_create_params();
 
@@ -457,7 +458,7 @@ impl Connector {
 
 /// Connection to an Oracle database
 pub struct Connection {
-    pub(crate) ctxt: &'static Context,
+    pub(crate) ctxt: Context,
     pub(crate) handle: DpiConn,
     tag: String,
     tag_found: bool,
@@ -515,7 +516,7 @@ impl Connection {
         common_params: Option<dpiCommonCreateParams>,
         conn_params: Option<dpiConnCreateParams>,
     ) -> Result<Connection> {
-        let ctxt = Context::get()?;
+        let ctxt = global_context()?;
         let common_params = common_params.unwrap_or(ctxt.common_create_params());
         let mut conn_params = conn_params.unwrap_or(ctxt.conn_create_params());
         let username = to_odpi_str(username);
@@ -525,7 +526,7 @@ impl Connection {
         chkerr!(
             ctxt,
             dpiConn_create(
-                ctxt.context,
+                ctxt.as_mut_ptr(),
                 username.ptr,
                 username.len,
                 password.ptr,
@@ -975,7 +976,7 @@ impl Connection {
                 }
             } else {
                 let mut err = MaybeUninit::uninit();
-                dpiContext_getError(self.ctxt.context, err.as_mut_ptr());
+                dpiContext_getError(self.ctxt.as_mut_ptr(), err.as_mut_ptr());
                 let err = err.assume_init();
                 let message = to_rust_slice(err.message, err.messageLength);
                 if message == b"DPI-1010: not connected" {
