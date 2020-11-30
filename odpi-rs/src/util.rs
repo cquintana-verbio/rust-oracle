@@ -15,6 +15,7 @@
 
 use std::ffi::CStr;
 use std::os::raw::c_char;
+use std::ptr;
 use std::slice;
 
 pub fn to_rust_str(ptr: *const c_char, len: u32) -> String {
@@ -36,3 +37,28 @@ pub fn ptr_to_rust_str(ptr: *const c_char) -> String {
 
 pub trait AssertSend: Send {}
 pub trait AssertSync: Sync {}
+
+pub(crate) struct OdpiStr {
+    pub ptr: *const c_char,
+    pub len: u32,
+}
+
+impl OdpiStr {
+    pub fn new() -> OdpiStr {
+        OdpiStr {
+            ptr: ptr::null(),
+            len: 0,
+        }
+    }
+
+    pub fn from_str(s: &str) -> OdpiStr {
+        if s.len() == 0 {
+            OdpiStr::new()
+        } else {
+            OdpiStr {
+                ptr: s.as_ptr() as *const c_char,
+                len: s.len() as u32,
+            }
+        }
+    }
+}

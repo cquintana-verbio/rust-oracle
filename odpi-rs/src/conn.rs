@@ -16,6 +16,7 @@
 use crate::context::Context;
 use odpi_sys::*;
 
+#[derive(Debug)]
 pub struct Conn {
     ctxt: Context,
     raw: *mut dpiConn,

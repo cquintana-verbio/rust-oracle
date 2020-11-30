@@ -29,6 +29,7 @@ use crate::ResultSet;
 use crate::Row;
 use crate::RowValue;
 use crate::SqlValue;
+use odpi_rs::stmt::{ExecMode, Stmt};
 use odpi_sys::*;
 use std::cell::RefCell;
 use std::fmt;
@@ -167,7 +168,7 @@ impl fmt::Display for StatementType {
 /// Statement
 pub struct Statement<'conn> {
     pub(crate) conn: &'conn Connection,
-    handle: *mut dpiStmt,
+    stmt: Stmt,
     pub(crate) column_info: Vec<ColumnInfo>,
     pub(crate) row: Option<Row>,
     shared_buffer_row_index: Rc<RefCell<u32>>,
@@ -253,7 +254,7 @@ impl<'conn> Statement<'conn> {
         };
         Ok(Statement {
             conn: conn,
-            handle: handle,
+            stmt: Stmt::from_raw(conn.ctxt(), handle),
             column_info: Vec::new(),
             row: None,
             shared_buffer_row_index: Rc::new(RefCell::new(0)),
@@ -268,18 +269,7 @@ impl<'conn> Statement<'conn> {
 
     /// Closes the statement before the end of lifetime.
     pub fn close(&mut self) -> Result<()> {
-        self.close_internal("")
-    }
-
-    fn close_internal(&mut self, tag: &str) -> Result<()> {
-        let tag = to_odpi_str(tag);
-
-        chkerr!(
-            self.conn.ctxt(),
-            dpiStmt_close(self.handle, tag.ptr, tag.len)
-        );
-        self.handle = ptr::null_mut();
-        Ok(())
+        self.stmt.close("")
     }
 
     /// Executes the prepared statement and returns a result set containing [Row][]s.
@@ -479,25 +469,18 @@ impl<'conn> Statement<'conn> {
     }
 
     fn exec_common(&mut self) -> Result<()> {
-        let mut num_query_columns = 0;
-        let mut exec_mode = DPI_MODE_EXEC_DEFAULT;
+        let mut exec_mode = ExecMode::DEFAULT;
         if self.conn.autocommit {
-            exec_mode |= DPI_MODE_EXEC_COMMIT_ON_SUCCESS;
+            exec_mode |= ExecMode::COMMIT_ON_SUCCESS;
         }
-        chkerr!(
-            self.conn.ctxt(),
-            dpiStmt_setFetchArraySize(self.handle, self.fetch_array_size)
-        );
-        chkerr!(
-            self.conn.ctxt(),
-            dpiStmt_execute(self.handle, exec_mode, &mut num_query_columns)
-        );
+        self.stmt.set_fetch_array_size(self.fetch_array_size)?;
+        let num_cols = self.stmt.execute(exec_mode)? as usize;
         if self.is_ddl() {
             let mut buf = MaybeUninit::uninit();
             chkerr!(
                 self.conn.ctxt(),
                 dpiStmt_getOciAttr(
-                    self.handle,
+                    self.raw(),
                     OCI_ATTR_SQLFNCODE,
                     buf.as_mut_ptr(),
                     ptr::null_mut()
@@ -513,7 +496,6 @@ impl<'conn> Statement<'conn> {
         }
         if self.statement_type == StatementType::Select {
             if self.row.is_none() {
-                let num_cols = num_query_columns as usize;
                 let mut column_names = Vec::with_capacity(num_cols);
                 let mut column_values = Vec::with_capacity(num_cols);
                 self.column_info = Vec::with_capacity(num_cols);
@@ -542,7 +524,7 @@ impl<'conn> Statement<'conn> {
                     val.init_handle(&self.conn.conn, oratype, self.fetch_array_size)?;
                     chkerr!(
                         self.conn.ctxt(),
-                        dpiStmt_define(self.handle, (i + 1) as u32, val.handle)
+                        dpiStmt_define(self.raw(), (i + 1) as u32, val.handle)
                     );
                     column_values.push(val);
                 }
@@ -634,7 +616,7 @@ impl<'conn> Statement<'conn> {
         if self.bind_values[pos].init_handle(&self.conn.conn, &value.oratype(self.conn)?, 1)? {
             chkerr!(
                 self.conn.ctxt(),
-                bindidx.bind(self.handle, self.bind_values[pos].handle)
+                bindidx.bind(self.raw(), self.bind_values[pos].handle)
             );
         }
         self.bind_values[pos].set(value)
@@ -719,11 +701,7 @@ impl<'conn> Statement<'conn> {
         I: BindIndex,
         T: FromSql,
     {
-        let mut rows = 0;
-        chkerr!(
-            self.conn.ctxt(),
-            dpiStmt_getRowCount(self.handle, &mut rows)
-        );
+        let mut rows = self.stmt.row_count()?;
         if rows == 0 {
             return Ok(vec![]);
         }
@@ -740,30 +718,21 @@ impl<'conn> Statement<'conn> {
     }
 
     pub(crate) fn next(&self) -> Option<Result<&Row>> {
-        let mut found = 0;
-        let mut buffer_row_index = 0;
-        if unsafe { dpiStmt_fetch(self.handle, &mut found, &mut buffer_row_index) } == 0 {
-            if found != 0 {
+        match self.stmt.fetch() {
+            Ok(Some(buffer_row_index)) => {
                 *self.shared_buffer_row_index.borrow_mut() = buffer_row_index;
                 // if self.row.is_none(), dpiStmt_fetch() returns non-zero.
                 Some(Ok(self.row.as_ref().unwrap()))
-            } else {
-                None
             }
-        } else {
-            Some(Err(self.conn.ctxt().last_error()))
+            Ok(None) => None,
+            Err(err) => Some(Err(err)),
         }
     }
 
     /// Returns the number of rows fetched when the SQL statement is a query.
     /// Otherwise, the number of rows affected.
     pub fn row_count(&self) -> Result<u64> {
-        let mut count = 0;
-        chkerr!(
-            self.conn.ctxt(),
-            dpiStmt_getRowCount(self.handle, &mut count)
-        );
-        Ok(count)
+        self.stmt.row_count()
     }
 
     /// Returns statement type
@@ -807,11 +776,9 @@ impl<'conn> Statement<'conn> {
     pub fn is_returning(&self) -> bool {
         self.is_returning
     }
-}
 
-impl<'conn> Drop for Statement<'conn> {
-    fn drop(&mut self) {
-        unsafe { dpiStmt_release(self.handle) };
+    pub(crate) fn raw(&self) -> *mut dpiStmt {
+        self.stmt.raw()
     }
 }
 
@@ -819,8 +786,8 @@ impl<'conn> fmt::Debug for Statement<'conn> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Statement {{ handle: {:?}, conn: {:?}, stmt_type: {}",
-            self.handle,
+            "Statement {{ stmt: {:?}, conn: {:?}, stmt_type: {}",
+            self.stmt,
             self.conn,
             self.statement_type()
         )?;
@@ -902,7 +869,7 @@ impl ColumnInfo {
         let mut info = MaybeUninit::uninit();
         chkerr!(
             stmt.conn.ctxt(),
-            dpiStmt_getQueryInfo(stmt.handle, (idx + 1) as u32, info.as_mut_ptr())
+            dpiStmt_getQueryInfo(stmt.raw(), (idx + 1) as u32, info.as_mut_ptr())
         );
         let info = unsafe { info.assume_init() };
         Ok(ColumnInfo {

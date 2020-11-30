@@ -11,4 +11,5 @@ edition = "2018"
 
 [dependencies]
 lazy_static = "1.3.0"
+bitflags = "1.2"
 odpi-sys = { path = "../odpi-sys", version = "0.1.0" }

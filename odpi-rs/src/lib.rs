@@ -15,9 +15,29 @@
 
 use std::result;
 
+macro_rules! chkerr {
+    ($ctxt:expr, $code:expr) => {{
+        if unsafe { $code } == DPI_SUCCESS as i32 {
+            ()
+        } else {
+            return Err($ctxt.last_error());
+        }
+    }};
+    ($ctxt:expr, $code:expr, $cleanup:stmt) => {{
+        if unsafe { $code } == DPI_SUCCESS as i32 {
+            ()
+        } else {
+            let err = $ctxt.last_error();
+            $cleanup
+            return Err(err);
+        }
+    }};
+}
+
 pub mod conn;
 pub mod context;
 pub mod error;
+pub mod stmt;
 mod util;
 
 pub type Result<T> = result::Result<T, error::Error>;
