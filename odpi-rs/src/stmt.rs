@@ -14,10 +14,13 @@
 //-----------------------------------------------------------------------------
 
 use crate::context::Context;
+use crate::types::DataTypeInfo;
+use crate::util::to_rust_str;
 use crate::util::OdpiStr;
 use crate::Result;
 use bitflags::bitflags;
 use odpi_sys::*;
+use std::mem::MaybeUninit;
 use std::ptr;
 
 bitflags! {
@@ -29,6 +32,22 @@ bitflags! {
         const BATCH_ERRORS = DPI_MODE_EXEC_BATCH_ERRORS;
         const PARSE_ONLY = DPI_MODE_EXEC_PARSE_ONLY;
         const ARRAY_DML_ROWCOUNTS = DPI_MODE_EXEC_ARRAY_DML_ROWCOUNTS;
+    }
+}
+
+pub struct QueryInfo {
+    pub name: String,
+    pub type_info: DataTypeInfo,
+    pub null_ok: bool,
+}
+
+impl QueryInfo {
+    pub fn new(ctxt: Context, info: &dpiQueryInfo) -> Result<QueryInfo> {
+        Ok(QueryInfo {
+            name: to_rust_str(info.name, info.nameLength),
+            type_info: DataTypeInfo::new(ctxt, &info.typeInfo)?,
+            null_ok: info.nullOk != 0,
+        })
     }
 }
 
@@ -89,6 +108,16 @@ impl Stmt {
         chkerr!(self.ctxt, dpiStmt_close(self.raw, tag.ptr, tag.len));
         self.raw = ptr::null_mut();
         Ok(())
+    }
+
+    pub fn query_info(&self, pos: u32) -> Result<QueryInfo> {
+        let mut info = MaybeUninit::uninit();
+        chkerr!(
+            self.ctxt,
+            dpiStmt_getQueryInfo(self.raw, pos, info.as_mut_ptr())
+        );
+        let info = unsafe { info.assume_init() };
+        QueryInfo::new(self.ctxt, &info)
     }
 
     pub fn raw(&self) -> *mut dpiStmt {

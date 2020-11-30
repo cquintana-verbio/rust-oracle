@@ -15,9 +15,9 @@
 
 use crate::sql_type::ObjectType;
 use crate::Context;
-use crate::DpiObjectType;
 use crate::Error;
 use crate::Result;
+use odpi_rs::types::ObjectType as OdpiObjectType;
 use odpi_sys::*;
 use std::fmt;
 use std::ptr;
@@ -239,7 +239,7 @@ impl OracleType {
             DPI_ORACLE_TYPE_BOOLEAN => Ok(OracleType::Boolean),
             DPI_ORACLE_TYPE_OBJECT => Ok(OracleType::Object(ObjectType::from_dpi_object_type(
                 ctxt,
-                DpiObjectType::with_add_ref(info.objectType),
+                OdpiObjectType::with_add_ref(ctxt, info.objectType)?,
             )?)),
             DPI_ORACLE_TYPE_LONG_VARCHAR => Ok(OracleType::Long),
             DPI_ORACLE_TYPE_LONG_RAW => Ok(OracleType::LongRaw),

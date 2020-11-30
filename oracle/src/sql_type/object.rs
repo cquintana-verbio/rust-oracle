@@ -21,11 +21,11 @@ use crate::to_rust_str;
 use crate::util::write_literal;
 use crate::Connection;
 use crate::Context;
-use crate::DpiObjectAttr;
-use crate::DpiObjectType;
 use crate::Error;
 use crate::Result;
 use crate::SqlValue;
+use odpi_rs::types::ObjectAttr as OdpiObjectAttr;
+use odpi_rs::types::ObjectType as OdpiObjectType;
 use odpi_sys::*;
 use std::cmp;
 use std::fmt;
@@ -529,13 +529,16 @@ pub struct ObjectType {
 }
 
 impl ObjectType {
-    pub(crate) fn from_dpi_object_type(ctxt: Context, handle: DpiObjectType) -> Result<ObjectType> {
+    pub(crate) fn from_dpi_object_type(
+        ctxt: Context,
+        handle: OdpiObjectType,
+    ) -> Result<ObjectType> {
         Ok(ObjectType {
             internal: Arc::new(ObjectTypeInternal::from_dpi_object_type(ctxt, handle)?),
         })
     }
 
-    pub(crate) fn handle(&self) -> &DpiObjectType {
+    pub(crate) fn handle(&self) -> &OdpiObjectType {
         &self.internal.handle
     }
 
@@ -650,13 +653,13 @@ impl fmt::Debug for ObjectType {
 /// See [ObjectType.attributes()](struct.ObjectType.html#method.attributes)
 pub struct ObjectTypeAttr {
     ctxt: Context,
-    handle: DpiObjectAttr,
+    handle: OdpiObjectAttr,
     name: String,
     oratype: OracleType,
 }
 
 impl ObjectTypeAttr {
-    fn new(ctxt: Context, handle: DpiObjectAttr) -> Result<ObjectTypeAttr> {
+    fn new(ctxt: Context, handle: OdpiObjectAttr) -> Result<ObjectTypeAttr> {
         let mut info = MaybeUninit::uninit();
         chkerr!(ctxt, dpiObjectAttr_getInfo(handle.raw(), info.as_mut_ptr()));
         let info = unsafe { info.assume_init() };
@@ -708,7 +711,7 @@ impl fmt::Debug for ObjectTypeAttr {
 
 pub(crate) struct ObjectTypeInternal {
     ctxt: Context,
-    handle: DpiObjectType,
+    handle: OdpiObjectType,
     schema: String,
     name: String,
     elem_oratype: Option<OracleType>,
@@ -716,7 +719,7 @@ pub(crate) struct ObjectTypeInternal {
 }
 
 impl ObjectTypeInternal {
-    fn from_dpi_object_type(ctxt: Context, handle: DpiObjectType) -> Result<ObjectTypeInternal> {
+    fn from_dpi_object_type(ctxt: Context, handle: OdpiObjectType) -> Result<ObjectTypeInternal> {
         let mut info = MaybeUninit::uninit();
         chkerr!(ctxt, dpiObjectType_getInfo(handle.raw(), info.as_mut_ptr()));
         let info = unsafe { info.assume_init() };
@@ -738,7 +741,7 @@ impl ObjectTypeInternal {
             );
             let mut attrs = Vec::with_capacity(attrnum);
             for i in 0..attrnum {
-                match ObjectTypeAttr::new(ctxt, DpiObjectAttr::new(attr_handles[i])) {
+                match ObjectTypeAttr::new(ctxt, OdpiObjectAttr::from_raw(ctxt, attr_handles[i])) {
                     Ok(attr) => attrs.push(attr),
                     Err(err) => {
                         for j in (i + 1)..attrnum {

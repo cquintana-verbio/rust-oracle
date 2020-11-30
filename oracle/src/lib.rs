@@ -288,7 +288,6 @@ Rust-oracle and ODPI-C bundled in rust-oracle are under the terms of:
 */
 
 use lazy_static::lazy_static;
-use odpi_sys::*;
 use std::os::raw::c_char;
 use std::ptr;
 use std::slice;
@@ -325,54 +324,6 @@ pub use odpi_rs::error::DbError;
 pub use odpi_rs::error::Error;
 pub use odpi_rs::error::ParseOracleTypeError;
 pub use odpi_rs::Result;
-
-macro_rules! define_dpi_data_with_refcount {
-    ($name:ident) => {
-        paste::item! {
-            struct [<Dpi $name>] {
-                raw: *mut [<dpi $name>],
-            }
-
-            impl [<Dpi $name>] {
-                fn new(raw: *mut [<dpi $name>]) -> [<Dpi $name>] {
-                    [<Dpi $name>] { raw: raw }
-                }
-
-                #[allow(dead_code)]
-                fn with_add_ref(raw: *mut [<dpi $name>]) -> [<Dpi $name>] {
-                    unsafe { [<dpi $name _addRef>](raw) };
-                    [<Dpi $name>] { raw: raw }
-                }
-
-                pub(crate) fn raw(&self) -> *mut [<dpi $name>] {
-                    self.raw
-                }
-            }
-
-            impl Clone for [<Dpi $name>] {
-                fn clone(&self) -> [<Dpi $name>] {
-                    unsafe { [<dpi $name _addRef>](self.raw()) };
-                    [<Dpi $name>]::new(self.raw())
-                }
-            }
-
-            impl Drop for [<Dpi $name>] {
-                fn drop(&mut self) {
-                    unsafe { [<dpi $name _release>](self.raw()) };
-                }
-            }
-
-            unsafe impl Send for [<Dpi $name>] {}
-            unsafe impl Sync for [<Dpi $name>] {}
-        }
-    };
-}
-
-// define DpiObjectType wrapping *mut dpiObjectType.
-define_dpi_data_with_refcount!(ObjectType);
-
-// define DpiObjectAttr wrapping *mut dpiObjectAttr.
-define_dpi_data_with_refcount!(ObjectAttr);
 
 trait AssertSend: Send {}
 trait AssertSync: Sync {}

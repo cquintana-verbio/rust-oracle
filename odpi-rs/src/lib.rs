@@ -34,10 +34,48 @@ macro_rules! chkerr {
     }};
 }
 
+macro_rules! dpi_enum {
+    () => {};
+    (
+        $(#[$outer_meta:meta])*
+        pub enum $enum_name:ident : $t:ty {
+            $(
+              $(#[$inner_meta:meta])*
+              $name:ident = $value:ident $(as $val_type:ty)?,
+            )*
+        }
+        $($tail:tt)*
+    ) => {
+        $(#[$outer_meta])*
+        pub enum $enum_name {
+            $(
+              $(#[$inner_meta])*
+              $name = $value $(as $val_type)?,
+            )*
+        }
+        impl ::std::convert::TryFrom<$t> for $enum_name {
+            type Error = $crate::error::Error;
+            fn try_from(value: $t) -> $crate::Result<$enum_name> {
+                match value as u32 {
+                    $($value => Ok($enum_name::$name),)*
+                    _ => Err($crate::error::Error::OutOfRange(format!(concat!("Invalid ", stringify!($enum_name), " number: {}"), value)))
+                }
+            }
+        }
+        impl From<$enum_name> for $t {
+            fn from(value: $enum_name) -> $t {
+                value as $t
+            }
+        }
+        dpi_enum!($($tail)*);
+    }
+}
+
 pub mod conn;
 pub mod context;
 pub mod error;
 pub mod stmt;
+pub mod types;
 mod util;
 
 pub type Result<T> = result::Result<T, error::Error>;

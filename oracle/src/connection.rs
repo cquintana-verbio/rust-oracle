@@ -26,7 +26,6 @@ use crate::util::duration_to_msecs;
 use crate::AssertSend;
 use crate::AssertSync;
 use crate::Context;
-use crate::DpiObjectType;
 use crate::Error;
 use crate::Result;
 use crate::ResultSet;
@@ -36,6 +35,7 @@ use crate::Statement;
 use crate::StmtParam;
 use crate::Version;
 use odpi_rs::conn::Conn;
+use odpi_rs::types::ObjectType as OdpiObjectType;
 use odpi_sys::*;
 use std::collections::HashMap;
 use std::fmt;
@@ -836,7 +836,10 @@ impl Connection {
             self.ctxt(),
             dpiConn_getObjectType(self.raw(), s.ptr, s.len, &mut handle)
         );
-        let res = ObjectType::from_dpi_object_type(self.ctxt(), DpiObjectType::new(handle));
+        let res = ObjectType::from_dpi_object_type(
+            self.ctxt(),
+            OdpiObjectType::from_raw(self.ctxt(), handle)?,
+        );
         if let Ok(ref objtype) = res {
             self.objtype_cache
                 .lock()?
