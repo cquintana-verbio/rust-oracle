@@ -31,9 +31,9 @@ use crate::util::parse_str_into_raw;
 use crate::util::set_hex_string;
 use crate::Connection;
 use crate::Context;
-use crate::DpiConn;
 use crate::Error;
 use crate::Result;
+use odpi_rs::conn::Conn;
 use odpi_sys::*;
 use std::cell::RefCell;
 use std::convert::TryInto;
@@ -207,7 +207,7 @@ impl SqlValue {
 
     pub(crate) fn init_handle(
         &mut self,
-        conn_handle: &DpiConn,
+        conn: &Conn,
         oratype: &OracleType,
         array_size: u32,
     ) -> Result<bool> {
@@ -226,7 +226,7 @@ impl SqlValue {
         chkerr!(
             self.ctxt,
             dpiConn_newVar(
-                conn_handle.raw(),
+                conn.raw(),
                 oratype_num,
                 native_type_num,
                 array_size,
@@ -728,13 +728,13 @@ impl SqlValue {
 
     /// Returns a duplicated value of self.
     pub fn dup(&self, conn: &Connection) -> Result<SqlValue> {
-        self.dup_by_handle(&conn.handle)
+        self.dup_by_handle(&conn.conn)
     }
 
-    pub(crate) fn dup_by_handle(&self, conn_handle: &DpiConn) -> Result<SqlValue> {
+    pub(crate) fn dup_by_handle(&self, conn: &Conn) -> Result<SqlValue> {
         let mut val = SqlValue::new(self.ctxt);
         if let Some(ref oratype) = self.oratype {
-            val.init_handle(conn_handle, oratype, 1)?;
+            val.init_handle(conn, oratype, 1)?;
             chkerr!(
                 self.ctxt,
                 dpiVar_copyData(val.handle, 0, self.handle, self.buffer_row_index()),

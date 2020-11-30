@@ -204,9 +204,9 @@ impl<'conn> Statement<'conn> {
         }
         let mut handle: *mut dpiStmt = ptr::null_mut();
         chkerr!(
-            conn.ctxt,
+            conn.ctxt(),
             dpiConn_prepareStmt(
-                conn.handle.raw(),
+                conn.raw(),
                 scrollable,
                 sql.ptr,
                 sql.len,
@@ -217,7 +217,7 @@ impl<'conn> Statement<'conn> {
         );
         let mut info = MaybeUninit::uninit();
         chkerr!(
-            conn.ctxt,
+            conn.ctxt(),
             dpiStmt_getInfo(handle, info.as_mut_ptr()),
             unsafe {
                 dpiStmt_release(handle);
@@ -225,9 +225,13 @@ impl<'conn> Statement<'conn> {
         );
         let info = unsafe { info.assume_init() };
         let mut num = 0;
-        chkerr!(conn.ctxt, dpiStmt_getBindCount(handle, &mut num), unsafe {
-            dpiStmt_release(handle);
-        });
+        chkerr!(
+            conn.ctxt(),
+            dpiStmt_getBindCount(handle, &mut num),
+            unsafe {
+                dpiStmt_release(handle);
+            }
+        );
         let bind_count = num as usize;
         let mut bind_names = Vec::with_capacity(bind_count);
         let mut bind_values = Vec::with_capacity(bind_count);
@@ -235,7 +239,7 @@ impl<'conn> Statement<'conn> {
             let mut names: Vec<*const i8> = vec![ptr::null_mut(); bind_count];
             let mut lengths = vec![0; bind_count];
             chkerr!(
-                conn.ctxt,
+                conn.ctxt(),
                 dpiStmt_getBindNames(handle, &mut num, names.as_mut_ptr(), lengths.as_mut_ptr()),
                 unsafe {
                     dpiStmt_release(handle);
@@ -244,7 +248,7 @@ impl<'conn> Statement<'conn> {
             bind_names = Vec::with_capacity(num as usize);
             for i in 0..(num as usize) {
                 bind_names.push(to_rust_str(names[i], lengths[i]));
-                bind_values.push(SqlValue::new(conn.ctxt));
+                bind_values.push(SqlValue::new(conn.ctxt()));
             }
         };
         Ok(Statement {
@@ -270,7 +274,10 @@ impl<'conn> Statement<'conn> {
     fn close_internal(&mut self, tag: &str) -> Result<()> {
         let tag = to_odpi_str(tag);
 
-        chkerr!(self.conn.ctxt, dpiStmt_close(self.handle, tag.ptr, tag.len));
+        chkerr!(
+            self.conn.ctxt(),
+            dpiStmt_close(self.handle, tag.ptr, tag.len)
+        );
         self.handle = ptr::null_mut();
         Ok(())
     }
@@ -478,17 +485,17 @@ impl<'conn> Statement<'conn> {
             exec_mode |= DPI_MODE_EXEC_COMMIT_ON_SUCCESS;
         }
         chkerr!(
-            self.conn.ctxt,
+            self.conn.ctxt(),
             dpiStmt_setFetchArraySize(self.handle, self.fetch_array_size)
         );
         chkerr!(
-            self.conn.ctxt,
+            self.conn.ctxt(),
             dpiStmt_execute(self.handle, exec_mode, &mut num_query_columns)
         );
         if self.is_ddl() {
             let mut buf = MaybeUninit::uninit();
             chkerr!(
-                self.conn.ctxt,
+                self.conn.ctxt(),
                 dpiStmt_getOciAttr(
                     self.handle,
                     OCI_ATTR_SQLFNCODE,
@@ -517,7 +524,7 @@ impl<'conn> Statement<'conn> {
                     column_names.push(ci.name.clone());
                     self.column_info.push(ci);
                     // setup column value
-                    let mut val = SqlValue::new(self.conn.ctxt);
+                    let mut val = SqlValue::new(self.conn.ctxt());
                     val.buffer_row_index =
                         BufferRowIndex::Shared(self.shared_buffer_row_index.clone());
                     let oratype = self.column_info[i].oracle_type();
@@ -532,9 +539,9 @@ impl<'conn> Statement<'conn> {
                         }
                         _ => oratype,
                     };
-                    val.init_handle(&self.conn.handle, oratype, self.fetch_array_size)?;
+                    val.init_handle(&self.conn.conn, oratype, self.fetch_array_size)?;
                     chkerr!(
-                        self.conn.ctxt,
+                        self.conn.ctxt(),
                         dpiStmt_define(self.handle, (i + 1) as u32, val.handle)
                     );
                     column_values.push(val);
@@ -624,9 +631,9 @@ impl<'conn> Statement<'conn> {
         I: BindIndex,
     {
         let pos = bindidx.idx(&self)?;
-        if self.bind_values[pos].init_handle(&self.conn.handle, &value.oratype(self.conn)?, 1)? {
+        if self.bind_values[pos].init_handle(&self.conn.conn, &value.oratype(self.conn)?, 1)? {
             chkerr!(
-                self.conn.ctxt,
+                self.conn.ctxt(),
                 bindidx.bind(self.handle, self.bind_values[pos].handle)
             );
         }
@@ -713,7 +720,10 @@ impl<'conn> Statement<'conn> {
         T: FromSql,
     {
         let mut rows = 0;
-        chkerr!(self.conn.ctxt, dpiStmt_getRowCount(self.handle, &mut rows));
+        chkerr!(
+            self.conn.ctxt(),
+            dpiStmt_getRowCount(self.handle, &mut rows)
+        );
         if rows == 0 {
             return Ok(vec![]);
         }
@@ -741,7 +751,7 @@ impl<'conn> Statement<'conn> {
                 None
             }
         } else {
-            Some(Err(self.conn.ctxt.last_error()))
+            Some(Err(self.conn.ctxt().last_error()))
         }
     }
 
@@ -749,7 +759,10 @@ impl<'conn> Statement<'conn> {
     /// Otherwise, the number of rows affected.
     pub fn row_count(&self) -> Result<u64> {
         let mut count = 0;
-        chkerr!(self.conn.ctxt, dpiStmt_getRowCount(self.handle, &mut count));
+        chkerr!(
+            self.conn.ctxt(),
+            dpiStmt_getRowCount(self.handle, &mut count)
+        );
         Ok(count)
     }
 
@@ -888,13 +901,13 @@ impl ColumnInfo {
     fn new(stmt: &Statement, idx: usize) -> Result<ColumnInfo> {
         let mut info = MaybeUninit::uninit();
         chkerr!(
-            stmt.conn.ctxt,
+            stmt.conn.ctxt(),
             dpiStmt_getQueryInfo(stmt.handle, (idx + 1) as u32, info.as_mut_ptr())
         );
         let info = unsafe { info.assume_init() };
         Ok(ColumnInfo {
             name: to_rust_str(info.name, info.nameLength),
-            oracle_type: OracleType::from_type_info(stmt.conn.ctxt, &info.typeInfo)?,
+            oracle_type: OracleType::from_type_info(stmt.conn.ctxt(), &info.typeInfo)?,
             nullable: info.nullOk != 0,
         })
     }

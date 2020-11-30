@@ -15,6 +15,7 @@
 
 use std::result;
 
+pub mod conn;
 pub mod context;
 pub mod error;
 mod util;

@@ -17,10 +17,10 @@ use crate::sql_type::FromSql;
 use crate::ColumnIndex;
 use crate::ColumnInfo;
 use crate::Connection;
-use crate::DpiConn;
 use crate::Result;
 use crate::SqlValue;
 use crate::Statement;
+use odpi_rs::conn::Conn;
 use std::boxed::Box;
 use std::fmt;
 use std::iter::FusedIterator;
@@ -29,7 +29,7 @@ use std::rc::Rc;
 
 pub struct RowSharedData {
     column_names: Vec<String>,
-    conn_handle: DpiConn,
+    conn: Conn,
 }
 
 /// Row in a result set of a select statement
@@ -46,7 +46,7 @@ impl Row {
     ) -> Result<Row> {
         let shared = RowSharedData {
             column_names: column_names,
-            conn_handle: conn.handle.clone(),
+            conn: conn.conn.clone(),
         };
         Ok(Row {
             shared: Rc::new(shared),
@@ -260,7 +260,7 @@ impl RowValue for Row {
         let num_cols = row.column_values.len();
         let mut column_values = Vec::with_capacity(num_cols);
         for val in &row.column_values {
-            column_values.push(val.dup_by_handle(&row.shared.conn_handle)?);
+            column_values.push(val.dup_by_handle(&row.shared.conn)?);
         }
         Ok(Row {
             shared: row.shared.clone(),
