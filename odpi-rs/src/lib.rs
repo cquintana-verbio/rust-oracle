@@ -13,7 +13,10 @@
 // (ii) the Apache License v 2.0. (http://www.apache.org/licenses/LICENSE-2.0)
 //-----------------------------------------------------------------------------
 
+use crate::util::to_rust_str;
+use odpi_sys::dpiDataBuffer;
 use std::result;
+use std::slice;
 
 macro_rules! chkerr {
     ($ctxt:expr, $code:expr) => {{
@@ -79,3 +82,51 @@ pub mod types;
 mod util;
 
 pub type Result<T> = result::Result<T, error::Error>;
+
+pub trait FromAttrValue {
+    unsafe fn from_attr_value(data: &dpiDataBuffer, len: u32) -> Result<Self>
+    where
+        Self: Sized;
+}
+
+impl FromAttrValue for bool {
+    unsafe fn from_attr_value(value: &dpiDataBuffer, _len: u32) -> Result<Self> {
+        Ok(value.asBoolean != 0)
+    }
+}
+
+impl FromAttrValue for u8 {
+    unsafe fn from_attr_value(value: &dpiDataBuffer, _len: u32) -> Result<Self> {
+        Ok(value.asUint8)
+    }
+}
+
+impl FromAttrValue for u16 {
+    unsafe fn from_attr_value(value: &dpiDataBuffer, _len: u32) -> Result<Self> {
+        Ok(value.asUint16)
+    }
+}
+
+impl FromAttrValue for u32 {
+    unsafe fn from_attr_value(value: &dpiDataBuffer, _len: u32) -> Result<Self> {
+        Ok(value.asUint32)
+    }
+}
+
+impl FromAttrValue for i64 {
+    unsafe fn from_attr_value(value: &dpiDataBuffer, _len: u32) -> Result<Self> {
+        Ok(value.asInt64)
+    }
+}
+
+impl FromAttrValue for Vec<u8> {
+    unsafe fn from_attr_value(value: &dpiDataBuffer, len: u32) -> Result<Self> {
+        Ok(slice::from_raw_parts(value.asRaw as *const u8, len as usize).to_vec())
+    }
+}
+
+impl FromAttrValue for String {
+    unsafe fn from_attr_value(value: &dpiDataBuffer, len: u32) -> Result<Self> {
+        Ok(to_rust_str(value.asString, len))
+    }
+}

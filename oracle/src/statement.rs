@@ -476,18 +476,7 @@ impl<'conn> Statement<'conn> {
         self.stmt.set_fetch_array_size(self.fetch_array_size)?;
         let num_cols = self.stmt.execute(exec_mode)? as usize;
         if self.is_ddl() {
-            let mut buf = MaybeUninit::uninit();
-            chkerr!(
-                self.conn.ctxt(),
-                dpiStmt_getOciAttr(
-                    self.raw(),
-                    OCI_ATTR_SQLFNCODE,
-                    buf.as_mut_ptr(),
-                    ptr::null_mut()
-                )
-            );
-            let fncode = unsafe { buf.assume_init().asUint16 };
-            match fncode {
+            match unsafe { self.stmt.oci_attr::<u16>(OCI_ATTR_SQLFNCODE)? } {
                 SQLFNCODE_CREATE_TYPE | SQLFNCODE_ALTER_TYPE | SQLFNCODE_DROP_TYPE => {
                     self.conn.clear_object_type_cache()?
                 }

@@ -17,6 +17,7 @@ use crate::context::Context;
 use crate::types::DataTypeInfo;
 use crate::util::to_rust_str;
 use crate::util::OdpiStr;
+use crate::FromAttrValue;
 use crate::Result;
 use bitflags::bitflags;
 use odpi_sys::*;
@@ -118,6 +119,19 @@ impl Stmt {
         );
         let info = unsafe { info.assume_init() };
         QueryInfo::new(self.ctxt, &info)
+    }
+
+    pub unsafe fn oci_attr<T>(&self, attr: u32) -> Result<T>
+    where
+        T: FromAttrValue,
+    {
+        let mut value = MaybeUninit::uninit();
+        let mut len = 0;
+        if dpiStmt_getOciAttr(self.raw, attr, value.as_mut_ptr(), &mut len) != 0 {
+            return Err(self.ctxt.last_error());
+        }
+        let value = value.assume_init();
+        <T>::from_attr_value(&value, len)
     }
 
     pub fn raw(&self) -> *mut dpiStmt {

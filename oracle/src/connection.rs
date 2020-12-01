@@ -20,7 +20,6 @@ use crate::sql_type::ObjectType;
 use crate::sql_type::ObjectTypeInternal;
 use crate::sql_type::ToSql;
 use crate::to_odpi_str;
-use crate::to_rust_slice;
 use crate::to_rust_str;
 use crate::util::duration_to_msecs;
 use crate::AssertSend;
@@ -956,36 +955,26 @@ impl Connection {
     ///
     /// See also [Connection.ping](struct.Connection.html#method.ping).
     pub fn status(&self) -> Result<ConnStatus> {
-        unsafe {
-            let mut buf = MaybeUninit::uninit();
-            if dpiConn_getOciAttr(
-                self.raw(),
-                OCI_HTYPE_SERVER,
-                OCI_ATTR_SERVER_STATUS,
-                buf.as_mut_ptr(),
-                ptr::null_mut(),
-            ) == 0
-            {
-                let status = buf.assume_init().asUint32;
-                match status {
-                    OCI_SERVER_NOT_CONNECTED => Ok(ConnStatus::NotConnected),
-                    OCI_SERVER_NORMAL => Ok(ConnStatus::Normal),
-                    _ => Err(Error::InternalError(format!(
-                        "Unexpected server status: {}",
-                        status
-                    ))),
-                }
-            } else {
-                let mut err = MaybeUninit::uninit();
-                dpiContext_getError(self.ctxt().as_mut_ptr(), err.as_mut_ptr());
-                let err = err.assume_init();
-                let message = to_rust_slice(err.message, err.messageLength);
-                if message == b"DPI-1010: not connected" {
+        match unsafe {
+            self.conn
+                .oci_attr::<u32>(OCI_HTYPE_SERVER, OCI_ATTR_SERVER_STATUS)
+        } {
+            Ok(status) => match status {
+                OCI_SERVER_NOT_CONNECTED => Ok(ConnStatus::NotConnected),
+                OCI_SERVER_NORMAL => Ok(ConnStatus::Normal),
+                _ => Err(Error::InternalError(format!(
+                    "Unexpected server status: {}",
+                    status
+                ))),
+            },
+            Err(Error::DpiError(err)) => {
+                if err.message().starts_with("DPI-1010:") {
                     Ok(ConnStatus::Closed)
                 } else {
-                    Err(Error::with_raw_err(&err))
+                    Err(Error::DpiError(err))
                 }
             }
+            Err(err) => Err(err),
         }
     }
 

@@ -14,7 +14,10 @@
 //-----------------------------------------------------------------------------
 
 use crate::context::Context;
+use crate::FromAttrValue;
+use crate::Result;
 use odpi_sys::*;
+use std::mem::MaybeUninit;
 
 #[derive(Debug)]
 pub struct Conn {
@@ -35,6 +38,19 @@ impl Conn {
 
     pub fn ctxt(&self) -> Context {
         self.ctxt
+    }
+
+    pub unsafe fn oci_attr<T>(&self, handle_type: u32, attr: u32) -> Result<T>
+    where
+        T: FromAttrValue,
+    {
+        let mut value = MaybeUninit::uninit();
+        let mut len = 0;
+        if dpiConn_getOciAttr(self.raw, handle_type, attr, value.as_mut_ptr(), &mut len) != 0 {
+            return Err(self.ctxt.last_error());
+        }
+        let value = value.assume_init();
+        <T>::from_attr_value(&value, len)
     }
 
     pub fn raw(&self) -> *mut dpiConn {
